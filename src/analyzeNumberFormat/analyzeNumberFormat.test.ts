@@ -60,6 +60,36 @@ describe('analyzeNumberFormat', () => {
     expect(result!.prefix).toBe('¥yen');
   });
 
+  it('連続するラベルは1要素の配列にまとめる', () => {
+    const result = analyzeNumberFormat('"a""b"0"c""d"');
+    expect(result!.integerPattern).toEqual(['0']);
+    expect(result!.prefix).toBe('ab');
+    expect(result!.suffix).toBe('cd');
+    expect(analyzeNumberFormat('0"a"#.0')!.integerPattern).toEqual([
+      '#',
+      ['a'],
+      '0',
+    ]);
+  });
+
+  it('引用符の外の文字もラベルとして扱う', () => {
+    const result = analyzeNumberFormat('¥#,##0.00円');
+    expect(result!.prefix).toBe('¥');
+    expect(result!.suffix).toBe('円');
+    expect(result!.integerDigits).toBe(4);
+    expect(result!.decimalDigits).toBe(2);
+  });
+
+  it('引用符と引用符の外の文字が連続する場合もまとめる', () => {
+    expect(analyzeNumberFormat('US"$ "0')!.prefix).toBe('US$ ');
+  });
+
+  it('閉じていない引用符は末尾までをラベルとして扱う', () => {
+    const result = analyzeNumberFormat('0"円.00');
+    expect(result!.hasDecimalPoint).toBe(false);
+    expect(result!.suffix).toBe('円.00');
+  });
+
   it('数値パターンがない場合は空の結果を返す', () => {
     const result = analyzeNumberFormat('xyz');
     expect(result).toBeDefined();

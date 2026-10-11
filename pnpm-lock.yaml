@@ -109,9 +109,6 @@ importers:
 
   .:
     dependencies:
-      '@fringeworks/utils':
-        specifier: link:../utils
-        version: link:../utils
       big.js:
         specifier: ^6.2.2
         version: 6.2.2

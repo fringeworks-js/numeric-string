@@ -46,7 +46,7 @@ const fn = limitPositiveNumber.dataLast({ negativeValue: 'abs' });
 analyzeNumberFormat(format: string | undefined): AnalyzeNumberFormatResult | undefined
 ```
 
-Analyzes a number format string such as `#,##0.00` and returns information like the number of digits and whether a thousands separator is used. The format can use `0` and `#` (digits), `,` (thousands separator), `.` (decimal point), and fixed text enclosed in `"`. Returns `undefined` when `format` is `null` or `undefined`.
+Analyzes a number format string such as `#,##0.00` and returns information like the number of digits and whether a thousands separator is used. The format can use `0` and `#` (digits), `,` (thousands separator), and `.` (decimal point). Any other characters are treated as fixed text. To use these symbols as fixed text, enclose them in `"` (an unclosed `"` encloses everything up to the end). Consecutive pieces of fixed text are joined into one. Returns `undefined` when `format` is `null` or `undefined`.
 
 ```ts
 analyzeNumberFormat('"¥"#,##0.00"円"');
@@ -81,7 +81,9 @@ limitDecimal(value: number | string | null | undefined, options?: LimitDecimalOp
 
 Converts a value such as form input to a decimal string and limits its decimal places and its minimum and maximum. Returns the full digits without exponent notation. When the value does not meet the conditions, returns the value set in the options (an empty string by default). A number given as a return value is returned as a string.
 
-When `interactive` is `false`, only complete numbers such as `-123` or `1.5` are accepted. When `interactive` is `true`, values still being typed such as `-` and `1.` are also accepted and returned as is.
+When `interactive` is `false`, only complete numbers such as `-123` or `1.5` are accepted. The numbers `NaN` and `Infinity` are treated as values that cannot be treated as numbers. When `min` or `max` cannot be treated as a number, it is treated as unlimited.
+
+When `interactive` is `true`, values still being typed such as `-`, `.`, and `1.` are also accepted. Values in range are returned as typed, such as `1.0` or `007`, with only the digits beyond `decimals` truncated. Since typing more digits only makes the absolute value larger, only the maximum is checked for positive values and only the minimum for negative values (with `min: 10`, typing `1` is not treated as out of range).
 
 ```ts
 limitDecimal('3.14159', { decimals: 2 }); // '3.14' (truncated)
@@ -89,20 +91,23 @@ limitDecimal('999', { max: 100 }); // ''
 limitDecimal('999', { max: 100, clampToMax: true }); // '100'
 limitDecimal('abc'); // ''
 limitDecimal('1.', { interactive: true }); // '1.'
+limitDecimal('1.0', { interactive: true }); // '1.0'
+limitDecimal('007', { interactive: true, trimLeadingZeros: true }); // '7'
 limitDecimal(1e21); // '1000000000000000000000'
 ```
 
-| Option             | Type                       | Description                                                                              |
-| ------------------ | -------------------------- | ---------------------------------------------------------------------------------------- |
-| `decimals?`        | `number`                   | The number of decimal places. Extra digits are truncated. Unlimited by default           |
-| `min?`             | `number \| string`         | The minimum. Unlimited by default                                                        |
-| `max?`             | `number \| string`         | The maximum. Unlimited by default                                                        |
-| `clampToMin?`      | `boolean`                  | If `true`, returns the minimum when the value is below it                                |
-| `clampToMax?`      | `boolean`                  | If `true`, returns the maximum when the value is above it                                |
-| `interactive?`     | `boolean`                  | If `true`, accepts values still being typed (`-`, `.`, `1.`, ...). Defaults to `false`   |
-| `emptyValue?`      | `number \| string \| null` | The value returned for an empty string, `null`, or `undefined`. Defaults to `''`         |
-| `nanValue?`        | `number \| string \| null` | The value returned when the input cannot be treated as a number. Defaults to `''`        |
-| `outOfRangeValue?` | `number \| string \| null` | The value returned when the input is outside the minimum–maximum range. Defaults to `''` |
+| Option              | Type                       | Description                                                                                                                                    |
+| ------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `decimals?`         | `number`                   | The number of decimal places. Extra digits are truncated. Unlimited by default                                                                 |
+| `min?`              | `number \| string`         | The minimum. Unlimited by default                                                                                                              |
+| `max?`              | `number \| string`         | The maximum. Unlimited by default                                                                                                              |
+| `clampToMin?`       | `boolean`                  | If `true`, returns the minimum when the value is below it. A minimum with more decimal places than `decimals` is rounded up to stay in range   |
+| `clampToMax?`       | `boolean`                  | If `true`, returns the maximum when the value is above it. A maximum with more decimal places than `decimals` is rounded down to stay in range |
+| `interactive?`      | `boolean`                  | If `true`, accepts values still being typed (`-`, `.`, `1.`, ...). Defaults to `false`                                                         |
+| `trimLeadingZeros?` | `boolean`                  | When `interactive` is `true`, removes extra leading zeros (`007` → `7`). Defaults to `false`                                                   |
+| `emptyValue?`       | `number \| string \| null` | The value returned for an empty string, `null`, or `undefined`. Defaults to `''`                                                               |
+| `nanValue?`         | `number \| string \| null` | The value returned when the input cannot be treated as a number. Defaults to `''`                                                              |
+| `outOfRangeValue?`  | `number \| string \| null` | The value returned when the input is outside the minimum–maximum range. Defaults to `''`                                                       |
 
 ### `limitNaturalNumber`
 
@@ -110,7 +115,7 @@ limitDecimal(1e21); // '1000000000000000000000'
 limitNaturalNumber(value: number | null | undefined, options?: LimitNaturalNumberOptions): number | null | undefined
 ```
 
-Converts a value to a natural number (an integer of 1 or more). Decimals are truncated, and `zeroValue` is returned when the result is `0`. The other options are the same as `limitPositiveNumber`.
+Converts a value to a natural number (an integer of 1 or more). Decimals are truncated, and `zeroValue` is returned when the result is `0`. The other options are the same as `limitPositiveNumber`. Values set in the options are returned as is without truncation.
 
 ```ts
 limitNaturalNumber(3.7); // 3

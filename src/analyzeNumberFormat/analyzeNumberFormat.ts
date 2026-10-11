@@ -1,11 +1,13 @@
-import { isSurroundedBy } from '@fringeworks/utils/string/isSurroundedBy';
 import * as R from 'remeda';
 import type { AnalyzeNumberFormatResult, NumberFormatPattern } from './types';
 
 /**
  * フォーマットを分解するための正規表現
+ * 1: '"'で囲んだ固定文字列(閉じていない場合は末尾まで)
+ * 2: 引用符の外の固定文字列
+ * それ以外: 数値 or 桁区切り or 小数点
  */
-const REGEXP_FORMAT_TO_PATTERN = /"([^"]*)"|0|#|\.|,/g;
+const REGEXP_FORMAT_TO_PATTERN = /"([^"]*)"?|([^"0#.,]+)|[0#.,]/g;
 
 /**
  * フォーマット文字列からパターン情報を作成する
@@ -81,7 +83,7 @@ export default function analyzeNumberFormat(
  * @returns
  */
 function getXfix(token: unknown): string | undefined {
-  return Array.isArray(token) ? token.join('') : undefined;
+  return Array.isArray(token) ? token[0] : undefined;
 }
 
 /**
@@ -91,28 +93,22 @@ function getXfix(token: unknown): string | undefined {
  * @returns
  */
 function tokenizeFormat(format: string, regex: RegExp): NumberFormatPattern {
-  const matchArray = format.match(regex);
-  if (matchArray) {
-    return matchArray.slice(0).reduce((result, token) => {
-      // #,0と固定文字列を見分けられるようにする
-      if (isSurroundedBy(token, '"')) {
-        // 固定文字列(label)
-        const label = token.substring(1, token.length - 1);
-        const lastItem = R.last(result);
-        if (Array.isArray(lastItem)) {
-          // 1つ前もlabelの場合は纏める
-          lastItem.push(label);
-        } else {
-          result.push([label]);
-        }
-      } else {
-        // 数値 or 桁区切り or 小数点
-        result.push(token);
-      }
-      return result;
-    }, [] satisfies NumberFormatPattern);
-  } else {
-    // マッチするもの無し
-    return [];
+  const result: NumberFormatPattern = [];
+  for (const [token, quotedLabel, unquotedLabel] of format.matchAll(regex)) {
+    const label = quotedLabel ?? unquotedLabel;
+    if (label == null) {
+      // 数値 or 桁区切り or 小数点
+      result.push(token);
+      continue;
+    }
+    // 固定文字列(label)
+    const lastItem = R.last(result);
+    if (Array.isArray(lastItem)) {
+      // 1つ前もlabelの場合は纏める
+      lastItem[0] += label;
+    } else {
+      result.push([label]);
+    }
   }
+  return result;
 }

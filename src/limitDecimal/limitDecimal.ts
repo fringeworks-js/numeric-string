@@ -8,56 +8,84 @@ import type { LimitDecimalOptions } from './types';
 const INTERACTIVE_LIMITATION = /^-?\d*\.?\d*$/;
 
 /**
- * 小数点まで入力した状態をチェックする為のパターン
- */
-const INTERACTIVE_PRECISION_LIMITATION = /^-?\d+\.$/;
-
-/**
  * 入力が完了したときの状態をチェックする為のパターン
  */
 const BATCH_LIMITATION = /^-?\d+(\.\d+)?$/;
 
 /**
- * 正の指数値のデフォルト
+ * 先頭の余分なゼロを取り除く為のパターン
  */
-const DEFAULT_PE = Big.PE;
+const LEADING_ZEROS = /^(-?)0+(?=\d)/;
 
 /**
- * 負の指数値のデフォルト
+ * 数字を含むかをチェックする為のパターン
  */
-const DEFAULT_NE = Big.NE;
-
-/**
- * 戻り値用の指数値
- */
-const E = 1000;
+const HAS_DIGIT = /\d/;
 
 const _toReturnValue = (
   value: Big | number | string | null | undefined,
 ): string | null => {
-  if (R.isNumber(value)) {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return String(value);
+    }
     value = new Big(value);
   }
   if (value instanceof Big) {
-    // Bigの場合はフル桁の数値を文字列で返す
-    Big.PE = E;
-    Big.NE = -E;
-    const returnValue = value.toString();
-    Big.PE = DEFAULT_PE;
-    Big.NE = DEFAULT_NE;
-    return returnValue;
+    // Bigの場合はフル桁の数値を文字列で返す(引数なしのtoFixedは指数表記にならない)
+    return value.toFixed();
   } else {
     // それ以外の場合はそのまま返す
-    return value;
+    return value ?? null;
   }
 };
 
-const _isNegative = (value: number | string) => {
-  if (R.isNumber(value)) {
-    return value < 0;
-  } else {
-    return value.startsWith('-');
+/**
+ * 最小値・最大値をBigに変換する
+ * 数値として扱えない場合は制限なしとしてundefinedを返す
+ */
+const _toBound = (value: number | string | undefined): Big | undefined => {
+  try {
+    // NaN、Infinityや数値でない文字列の場合はBigが例外を投げる
+    return value == null ? undefined : new Big(value);
+  } catch {
+    return;
   }
+};
+
+/**
+ * 小数点以下を指定した桁数で丸める
+ * @param value 値
+ * @param decimals 小数点以下の桁数
+ * @param direction 丸める方向
+ */
+const _roundTo = (
+  value: Big,
+  decimals: number | undefined,
+  direction: 'down' | 'floor' | 'ceil',
+): Big => {
+  if (decimals == null) {
+    return value;
+  }
+  // 'floor'/'ceil'は符号によって0方向・0から離れる方向を切り替える
+  const toZero =
+    direction === 'down' ||
+    (direction === 'floor' && value.s > 0) ||
+    (direction === 'ceil' && value.s < 0);
+  return value.round(decimals, toZero ? Big.roundDown : Big.roundUp);
+};
+
+/**
+ * 文字列のまま小数点以下を切り捨てる
+ * @param value 値
+ * @param decimals 小数点以下の桁数
+ */
+const _truncateString = (value: string, decimals: number | undefined) => {
+  const dpIndex = value.indexOf('.');
+  if (decimals == null || dpIndex < 0) {
+    return value;
+  }
+  return value.slice(0, decimals === 0 ? dpIndex : dpIndex + 1 + decimals);
 };
 
 /**
@@ -74,69 +102,96 @@ export default function limitDecimal(
     emptyValue = '',
     nanValue = '',
     outOfRangeValue = '',
-    min = Number.NEGATIVE_INFINITY,
-    max = Number.POSITIVE_INFINITY,
     decimals,
     interactive = false,
+    trimLeadingZeros = false,
     clampToMin,
     clampToMax,
   } = options;
+  const min = _toBound(options.min);
+  const max = _toBound(options.max);
 
   if (value == null || value === '') {
     // 値が無い場合
     return _toReturnValue(emptyValue);
   }
 
-  if (!R.isNumber(value)) {
-    // 文字列の場合
-    if (interactive) {
-      // 入力中の為に数値の形式になっていない状態をチェックする
-      if (!INTERACTIVE_LIMITATION.test(value)) {
-        // 完全に数値ではない場合
-        return _toReturnValue(nanValue);
-      } else if (_isNegative(min) && value === '-') {
-        // 負数が入力可能な場合
-        return value;
-      } else if (
-        (decimals == null || 0 < decimals) &&
-        INTERACTIVE_PRECISION_LIMITATION.test(value)
-      ) {
-        // 小数の入力が可能な場合
-        return value;
-      }
-    } else if (!BATCH_LIMITATION.test(value)) {
-      // 入力完了時の状態をチェックする
-      return _toReturnValue(nanValue);
-    }
+  if (R.isString(value) && interactive) {
+    return _limitInteractive(value);
   }
 
-  if (isNaN(Number(value))) {
+  if (
+    typeof value === 'number'
+      ? !Number.isFinite(value)
+      : !BATCH_LIMITATION.test(value)
+  ) {
+    // NaN、Infinity、または入力完了時の形になっていない場合
     return _toReturnValue(nanValue);
   }
 
-  let numberValue = new Big(value);
-  if (decimals != null) {
-    // 小数点以下の桁数が制限されている場合
-    numberValue = numberValue.round(decimals, Big.roundDown);
-  }
+  const numberValue = _roundTo(new Big(value), decimals, 'down');
+  const outOfRange = _limitRange(numberValue, {
+    checkMin: true,
+    checkMax: true,
+  });
+  return outOfRange !== undefined ? outOfRange : _toReturnValue(numberValue);
 
-  if ((R.isString(min) || Number.isFinite(min)) && numberValue.lt(min)) {
-    // 最小値よりも小さい場合
-    if (clampToMin) {
-      return _toReturnValue(min);
-    } else {
-      return _toReturnValue(outOfRangeValue);
+  /**
+   * 入力中の文字列を制限する
+   * 範囲内の場合は入力された文字列の形のまま返す
+   */
+  function _limitInteractive(value: string): string | null {
+    if (!INTERACTIVE_LIMITATION.test(value)) {
+      // 完全に数値ではない場合
+      return _toReturnValue(nanValue);
     }
-  }
-
-  if ((R.isString(max) || Number.isFinite(max)) && numberValue.gt(max)) {
-    // 最大値よりも大きい場合
-    if (clampToMax) {
-      return _toReturnValue(max);
-    } else {
-      return _toReturnValue(outOfRangeValue);
+    let result = _truncateString(value, decimals);
+    if (trimLeadingZeros) {
+      result = result.replace(LEADING_ZEROS, '$1');
     }
+    const isNegative = result.startsWith('-');
+    const canBeNegative = min == null || min.lt(0);
+    if (!HAS_DIGIT.test(result)) {
+      // '-'、'.'、'-.'などの数字の無い入力途中の状態
+      if (result === '') {
+        return _toReturnValue(emptyValue);
+      }
+      return isNegative && !canBeNegative ? _toReturnValue(nanValue) : result;
+    }
+    // 入力を続けると絶対値は大きくなる一方なので、
+    // 桁を足して範囲内に届く可能性がある側の境界はチェックしない
+    const outOfRange = _limitRange(new Big(result), {
+      checkMin: isNegative,
+      checkMax: !isNegative,
+      forceUnderMin: isNegative && !canBeNegative,
+    });
+    return outOfRange !== undefined ? outOfRange : result;
   }
 
-  return _toReturnValue(numberValue);
+  /**
+   * 範囲外の場合に返す値を返す
+   * 範囲内の場合はundefinedを返す
+   */
+  function _limitRange(
+    numberValue: Big,
+    {
+      checkMin,
+      checkMax,
+      forceUnderMin = false,
+    }: { checkMin: boolean; checkMax: boolean; forceUnderMin?: boolean },
+  ): string | null | undefined {
+    if (min != null && ((checkMin && numberValue.lt(min)) || forceUnderMin)) {
+      // 最小値よりも小さい場合
+      return clampToMin
+        ? _toReturnValue(_roundTo(min, decimals, 'ceil'))
+        : _toReturnValue(outOfRangeValue);
+    }
+    if (max != null && checkMax && numberValue.gt(max)) {
+      // 最大値よりも大きい場合
+      return clampToMax
+        ? _toReturnValue(_roundTo(max, decimals, 'floor'))
+        : _toReturnValue(outOfRangeValue);
+    }
+    return;
+  }
 }

@@ -19,13 +19,13 @@ export type LimitDecimalOptions = {
 
   /**
    * 入力可能な最小値
-   * デフォルトは制限なし
+   * デフォルトは制限なし(数値として扱えない場合も制限なし)
    */
   min?: number | string;
 
   /**
    * 入力可能な最大値
-   * デフォルトは制限なし
+   * デフォルトは制限なし(数値として扱えない場合も制限なし)
    */
   max?: number | string;
 
@@ -37,18 +37,28 @@ export type LimitDecimalOptions = {
 
   /**
    * 下限を下回った時には下限値を返す
+   * 下限値がdecimalsの桁数を超える場合は、範囲内に収まるよう切り上げる
    */
   clampToMin?: boolean;
 
   /**
    * 上限を上回った時には上限値を返す
+   * 上限値がdecimalsの桁数を超える場合は、範囲内に収まるよう切り捨てる
    */
   clampToMax?: boolean;
 
   /**
    * 入力中の数値に対する処理
-   * trueの場合は、'-'、'.'のみや'1.'などの入力中の状態が許容される
+   * trueの場合は、'-'、'.'のみや'1.'などの入力中の状態が許容され、
+   * 範囲内の値は入力された文字列の形のまま返す
    * デフォルトはfalse
    */
   interactive?: boolean;
+
+  /**
+   * interactiveがtrueの場合に、先頭の余分なゼロを取り除く
+   * ('007'→'7'、'-00.5'→'-0.5')
+   * デフォルトはfalse
+   */
+  trimLeadingZeros?: boolean;
 };
