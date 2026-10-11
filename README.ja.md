@@ -1,15 +1,15 @@
-# @fringeworks/number-input
+# @fringeworks/numeric-string
 
-`@fringeworks/number-input` は、数値の入力値の制限や、数値の書式の解析を行う、誰かにとっては便利なライブラリです。
+`@fringeworks/numeric-string` は、数値を表す文字列の制限や書式の解析を行う、誰かにとっては便利なライブラリです。
 
 **[English README is available here](./README.md)**
 
 ## インストール
 
 ```bash
-npm install @fringeworks/number-input
+npm install @fringeworks/numeric-string
 # または
-pnpm add @fringeworks/number-input
+pnpm add @fringeworks/numeric-string
 ```
 
 ## 使い方
@@ -17,8 +17,8 @@ pnpm add @fringeworks/number-input
 関数・型・定数は、ルートと関数単位のパスのどちらからでも同じ名前で import できます。関数単位のパスでは、その関数を default import することもできます。
 
 ```ts
-import { limitDecimal } from '@fringeworks/number-input';
-import limitDecimal from '@fringeworks/number-input/limitDecimal';
+import { limitDecimal } from '@fringeworks/numeric-string';
+import limitDecimal from '@fringeworks/numeric-string/limitDecimal';
 ```
 
 ### Data Last

@@ -1,5 +1,5 @@
 {
-  "name": "@fringeworks/number-input",
+  "name": "@fringeworks/numeric-string",
   "version": "0.1.0",
   "private": true,
   "description": "A library some will find handy, for limiting numeric input and analyzing number formats.",
@@ -11,7 +11,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fringeworks-js/number-input.git"
+    "url": "git+https://github.com/fringeworks-js/numeric-string.git"
   },
   "license": "MIT",
   "author": "Mitsuhiro Seino",

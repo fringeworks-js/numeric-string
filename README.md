@@ -1,15 +1,15 @@
-# @fringeworks/number-input
+# @fringeworks/numeric-string
 
-`@fringeworks/number-input` is a library some will find handy, for limiting numeric input and analyzing number formats.
+`@fringeworks/numeric-string` is a library some will find handy, for constraining numeric strings and analyzing number formats.
 
 **[日本語のREADMEはこちら](./README.ja.md)**
 
 ## Installation
 
 ```bash
-npm install @fringeworks/number-input
+npm install @fringeworks/numeric-string
 # or
-pnpm add @fringeworks/number-input
+pnpm add @fringeworks/numeric-string
 ```
 
 ## Usage
@@ -17,8 +17,8 @@ pnpm add @fringeworks/number-input
 Functions, types, and constants can be imported by the same name from the root or from a per-function path. A per-function path also provides its function as the default export.
 
 ```ts
-import { limitDecimal } from '@fringeworks/number-input';
-import limitDecimal from '@fringeworks/number-input/limitDecimal';
+import { limitDecimal } from '@fringeworks/numeric-string';
+import limitDecimal from '@fringeworks/numeric-string/limitDecimal';
 ```
 
 ### Data Last
