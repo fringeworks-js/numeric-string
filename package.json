@@ -1,8 +1,8 @@
 {
   "name": "@fringeworks/numeric-string",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
-  "description": "A library some will find handy, for limiting numeric input and analyzing number formats.",
+  "description": "A library some will find handy, for normalizing, limiting, and formatting numeric strings without losing precision.",
   "keywords": [
     "number",
     "input",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@fringeworks/dev": "^0.9.1",
+    "@fringeworks/dev": "^0.9.2",
     "@fringeworks/rollup-plugin-dist-package": "^0.8.0",
     "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.59.2",

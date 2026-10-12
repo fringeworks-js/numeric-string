@@ -1,5 +1,6 @@
 import Big from 'big.js';
 import * as R from 'remeda';
+import { _roundBig, _toBig } from '../_internal/_roundBig';
 import type { LimitDecimalOptions } from './types';
 
 /**
@@ -22,21 +23,13 @@ const LEADING_ZEROS = /^(-?)0+(?=\d)/;
  */
 const HAS_DIGIT = /\d/;
 
-const _toReturnValue = (
-  value: Big | number | string | null | undefined,
-): string | null => {
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) {
-      return String(value);
-    }
-    value = new Big(value);
-  }
+const _toReturnValue = (value: Big | string | null): string | null => {
   if (value instanceof Big) {
     // Bigの場合はフル桁の数値を文字列で返す(引数なしのtoFixedは指数表記にならない)
     return value.toFixed();
   } else {
     // それ以外の場合はそのまま返す
-    return value ?? null;
+    return value;
   }
 };
 
@@ -44,36 +37,8 @@ const _toReturnValue = (
  * 最小値・最大値をBigに変換する
  * 数値として扱えない場合は制限なしとしてundefinedを返す
  */
-const _toBound = (value: number | string | undefined): Big | undefined => {
-  try {
-    // NaN、Infinityや数値でない文字列の場合はBigが例外を投げる
-    return value == null ? undefined : new Big(value);
-  } catch {
-    return;
-  }
-};
-
-/**
- * 小数点以下を指定した桁数で丸める
- * @param value 値
- * @param decimals 小数点以下の桁数
- * @param direction 丸める方向
- */
-const _roundTo = (
-  value: Big,
-  decimals: number | undefined,
-  direction: 'down' | 'floor' | 'ceil',
-): Big => {
-  if (decimals == null) {
-    return value;
-  }
-  // 'floor'/'ceil'は符号によって0方向・0から離れる方向を切り替える
-  const toZero =
-    direction === 'down' ||
-    (direction === 'floor' && value.s > 0) ||
-    (direction === 'ceil' && value.s < 0);
-  return value.round(decimals, toZero ? Big.roundDown : Big.roundUp);
-};
+const _toBound = (value: number | string | undefined): Big | undefined =>
+  value == null ? undefined : _toBig(value);
 
 /**
  * 文字列のまま小数点以下を切り捨てる
@@ -103,6 +68,7 @@ export default function limitDecimal(
     nanValue = '',
     outOfRangeValue = '',
     decimals,
+    roundingMode = 'trunc',
     interactive = false,
     trimLeadingZeros = false,
     clampToMin,
@@ -129,7 +95,7 @@ export default function limitDecimal(
     return _toReturnValue(nanValue);
   }
 
-  const numberValue = _roundTo(new Big(value), decimals, 'down');
+  const numberValue = _roundBig(new Big(value), decimals, roundingMode);
   const outOfRange = _limitRange(numberValue, {
     checkMin: true,
     checkMax: true,
@@ -183,13 +149,13 @@ export default function limitDecimal(
     if (min != null && ((checkMin && numberValue.lt(min)) || forceUnderMin)) {
       // 最小値よりも小さい場合
       return clampToMin
-        ? _toReturnValue(_roundTo(min, decimals, 'ceil'))
+        ? _toReturnValue(_roundBig(min, decimals, 'ceil'))
         : _toReturnValue(outOfRangeValue);
     }
     if (max != null && checkMax && numberValue.gt(max)) {
       // 最大値よりも大きい場合
       return clampToMax
-        ? _toReturnValue(_roundTo(max, decimals, 'floor'))
+        ? _toReturnValue(_roundBig(max, decimals, 'floor'))
         : _toReturnValue(outOfRangeValue);
     }
     return;

@@ -1,5 +1,6 @@
 import Big from 'big.js';
 import limitDecimal from './limitDecimal';
+import type { RoundingMode } from './types';
 
 describe('limitDecimal', () => {
   describe('null/undefined/空文字', () => {
@@ -61,6 +62,56 @@ describe('limitDecimal', () => {
 
     it('decimals: 0 で整数に丸める', () => {
       expect(limitDecimal(3.9, { decimals: 0 })).toBe('3');
+    });
+  });
+
+  describe('丸め方(roundingMode)', () => {
+    const round = (value: string, roundingMode: RoundingMode) =>
+      limitDecimal(value, { decimals: 1, roundingMode });
+
+    it.each<[RoundingMode, string[]]>([
+      ['trunc', ['1.2', '1.2', '-1.2', '-1.2']],
+      ['expand', ['1.3', '1.3', '-1.3', '-1.3']],
+      ['floor', ['1.2', '1.2', '-1.3', '-1.3']],
+      ['ceil', ['1.3', '1.3', '-1.2', '-1.2']],
+      ['halfExpand', ['1.3', '1.3', '-1.3', '-1.3']],
+      ['halfEven', ['1.2', '1.3', '-1.2', '-1.3']],
+    ])('%s', (roundingMode, expected) => {
+      expect(
+        ['1.25', '1.26', '-1.25', '-1.26'].map((value) =>
+          round(value, roundingMode),
+        ),
+      ).toEqual(expected);
+    });
+
+    it('割り切れる値は丸めない', () => {
+      expect(round('1.2', 'expand')).toBe('1.2');
+      expect(round('-1.2', 'floor')).toBe('-1.2');
+    });
+
+    it('未知の丸め方はtruncとして扱う', () => {
+      expect(round('1.29', 'unknown' as RoundingMode)).toBe('1.2');
+    });
+
+    it('丸めた後の値で範囲をチェックする', () => {
+      expect(
+        limitDecimal('9.96', {
+          decimals: 1,
+          roundingMode: 'halfExpand',
+          max: 9.99,
+          outOfRangeValue: 'OUT',
+        }),
+      ).toBe('OUT');
+    });
+
+    it('interactiveでは常に切り捨てる', () => {
+      expect(
+        limitDecimal('1.29', {
+          decimals: 1,
+          roundingMode: 'halfExpand',
+          interactive: true,
+        }),
+      ).toBe('1.2');
     });
   });
 
@@ -126,11 +177,6 @@ describe('limitDecimal', () => {
     it('Infinity/-InfinityはnanValueを返す', () => {
       expect(limitDecimal(Infinity, { nanValue: 'NG' })).toBe('NG');
       expect(limitDecimal(-Infinity, { nanValue: 'NG' })).toBe('NG');
-    });
-
-    it('nanValueに数値を指定した場合は文字列にして返す', () => {
-      expect(limitDecimal('abc', { nanValue: 0 })).toBe('0');
-      expect(limitDecimal('abc', { nanValue: NaN })).toBe('NaN');
     });
   });
 
